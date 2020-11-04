@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "290467080356",
+    "firebase_url": "https://logishift-android-kotlin.firebaseio.com",
+    "project_id": "logishift-android-kotlin",
+    "storage_bucket": "logishift-android-kotlin.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290467080356:android:9739cdd01c71892863de31",
+        "android_client_info": {
+          "package_name": "eu.binarysystem.logishift"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "290467080356-9pnousfj5q58c4lc9nk1uhu7srn61vdt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD0PVSrxZ3DsK6RmqDXiKXQRlu2qZ9WIHU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "290467080356-9pnousfj5q58c4lc9nk1uhu7srn61vdt.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,28 +1,36 @@
 plugins {
     id 'com.android.application'
     id 'kotlin-android'
+    id 'kotlin-android-extensions'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.crashlytics'
 }
 
 android {
     compileSdkVersion 30
-    buildToolsVersion "30.0.2"
+
 
     defaultConfig {
         applicationId "eu.binarysystem.logishift"
         minSdkVersion 16
         targetSdkVersion 30
         versionCode 1
-        versionName "1.0"
-
+        versionName "1.5.1-kotlin"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    applicationVariants.all { variant ->
+        appendVersionNameVersionCode(variant, defaultConfig)
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -33,13 +41,37 @@ android {
 }
 
 dependencies {
+    String fireBaseCoreVersion = '18.0.0'
+    String fireBaseMessagingVersion = '21.0.0'
+    String firebaseJobDispatcherVersion = '0.8.6'
+
+
 
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    implementation 'androidx.core:core-ktx:1.2.0'
+
+    //Android core dependencies
+    implementation 'androidx.core:core-ktx:1.3.2'
     implementation 'androidx.appcompat:appcompat:1.2.0'
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
-    testImplementation 'junit:junit:4.+'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
+
+    //Firebase dependencies
+    implementation "com.google.firebase:firebase-core:$fireBaseCoreVersion"
+    implementation "com.google.firebase:firebase-messaging:$fireBaseMessagingVersion"
+    implementation "com.firebase:firebase-jobdispatcher:$firebaseJobDispatcherVersion"
+    implementation platform('com.google.firebase:firebase-bom:25.6.0')
+    implementation 'com.google.firebase:firebase-analytics'
+    implementation 'com.google.firebase:firebase-crashlytics'
+
+    //Test dependencies
+    testImplementation 'junit:junit:4.13.1'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+}
+
+static def appendVersionNameVersionCode(variant, defaultConfig) {
+    variant.outputs.all { output ->
+        outputFileName = "LogiShift_" + variant.versionName + "-" + variant.versionCode + "_sso_login.apk"
+        outputFileName = "LogiShift_" + variant.versionName + "-" + variant.versionCode + ".apk"
+    }
 }
