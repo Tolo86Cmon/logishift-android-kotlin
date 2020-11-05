@@ -9,20 +9,30 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import eu.binarysystem.logishift.R
-import eu.binarysystem.logishift.hilt.LocationManager
+import eu.binarysystem.logishift.hilt.LocationManagerRetriever
+import eu.binarysystem.logishift.utilities.GpsManager
+import timber.log.Timber
+import java.util.concurrent.BlockingDeque
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class WebViewActivity : AppCompatActivity() {
-    @Inject lateinit var locationManagerInjector: LocationManager
+
+   lateinit var  gpsManager: GpsManager
+
+
+    @Inject
+    lateinit var locationManager: LocationManagerRetriever
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContentView(R.layout.webview_activity)
 
+        checkGpsLocation()
+    }
 
 
+    private fun checkGpsLocation() {
         if (ActivityCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -31,51 +41,45 @@ class WebViewActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            ) {
 
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1
+                )
 
             } else {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1
+                )
             }
         }
-
-
-        locationManagerInjector.getLatitudeAndLongitude().lastLocation.addOnSuccessListener {
-            println("Banana ${it.accuracy}")
-            println(it.latitude)
-            println(it.longitude)
-        }.addOnFailureListener { println("Banana ${it.localizedMessage}") }
-
-
-
-
+        gpsManager =  GpsManager.getInstance(this, locationManager.getLocationManager())
+        Timber.d("Banana checkAtLeast %s",  gpsManager.checkAtLeastOneLocationProvidersAvailable())
+        gpsManager.retrieveLocation()
     }
 
 
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>,
-                                            grantResults: IntArray) {
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<String>,
+        grantResults: IntArray
+    ) {
         when (requestCode) {
             1 -> {
-                if (grantResults.isNotEmpty() && grantResults[0] ==
-                    PackageManager.PERMISSION_GRANTED
-                ) {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     if ((ContextCompat.checkSelfPermission(
                             this,
                             Manifest.permission.ACCESS_FINE_LOCATION
-                        ) ==
-                                PackageManager.PERMISSION_GRANTED)
+                        ) == PackageManager.PERMISSION_GRANTED)
                     ) {
                         Toast.makeText(this, "Permission Granted", Toast.LENGTH_SHORT).show()
-                        locationManagerInjector.getLatitudeAndLongitude().lastLocation.addOnSuccessListener {
-                            println("Banana ${it.accuracy}")
-                            println(it.latitude)
-                            println(it.longitude)
-                        }.addOnFailureListener { println("Banana ${it.localizedMessage}") }
+
                     }
                 } else {
                     Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show()
@@ -84,8 +88,17 @@ class WebViewActivity : AppCompatActivity() {
                 return
             }
         }
-        }
+    }
 
+    override fun onResume() {
+        super.onResume()
+        gpsManager.retrieveLocation()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        gpsManager.stopUsingGps()
+    }
 
 
 }

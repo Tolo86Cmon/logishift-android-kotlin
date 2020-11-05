@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">LogiShift</string>
+
+    <!-- Strings related to login -->
+    <string name="action_sign_in_short">Check</string>
+    <string name="server_label">Servidor</string>
+    <string name="server_label_hint" >Url servidor</string>
+
+    <!-- Status bar menu string -->
+    <string name="menu_item_text_logout" >Cerrar sesión</string>
+    <string name="menu_item_text_info" >Info</string>
+    <string name="menu_item_change_server_url_text">Cambiar de servidor</string>
+
+    <!-- Strings related to http login -->
+    <string name="server_successfully_logged_out">Cerrar sesión exitosamente</string>
+    <string name="server_sso_login_error">Error al cargar el inicio de sesión único en la página</string>
+    <string name="server_sso_login_succesful">Inicio de sesión único en la carga exitosa</string>
+
+    <string name="no_app_available_to_open_document">Ninguna aplicación en el dispositivo puede abrir el documento</string>
+    <string name="action_change_url_schema">Cambiar esquema</string>
+    <string name="action_save_url_schema">"Guardar esquema"</string>
+    <string name="server_schema_error">"El esquema del servidor no es correcto"</string>
+    <string name="save_schema_message">"Guarde el esquema antes de iniciar sesión"</string>
+</resources>

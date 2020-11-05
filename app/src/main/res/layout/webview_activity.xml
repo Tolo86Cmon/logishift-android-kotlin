@@ -1,18 +1,188 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:theme="@style/MyTheme"
     tools:context=".activities.WebViewActivity">
 
-    <TextView
+    <ProgressBar
+        android:id="@+id/login_progress"
+        style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_centerInParent="true"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/email_login_form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+
+        <LinearLayout
+            android:id="@+id/llserver_url_container"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="#76B856"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:visibility="visible">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dip"
+                android:layout_weight="0.20"
+                android:singleLine="true"
+                android:textAlignment="center"
+                android:layout_gravity="center"
+                android:text="@string/server_label"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/server_scheme"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.15"
+                android:enabled="false"
+                android:textAlignment="center"
+                android:layout_gravity="center"
+                android:imeActionLabel="@string/action_sign_in_short"
+                android:imeOptions="actionUnspecified"
+                android:inputType="textUri"
+                android:scrollHorizontally="true"
+                android:singleLine="true"
+                android:text="https" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dip"
+                android:textAlignment="center"
+                android:layout_gravity="center"
+                android:layout_weight="0.1"
+                android:singleLine="true"
+                android:text="//:"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                />
+
+            <EditText
+                android:id="@+id/server_edit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.70"
+                android:hint="@string/server_label_hint"
+                android:imeActionLabel="@string/action_sign_in_short"
+                android:imeOptions="actionUnspecified"
+                android:inputType="textUri"
+                android:scrollHorizontally="true"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <RelativeLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            >
+
+            <Button
+                android:id="@+id/email_sign_in_button"
+                style="?android:textAppearanceButton"
+                android:layout_width="150dp"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:layout_alignParentLeft="true"
+                android:layout_gravity="center"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="35dp"
+                android:layout_marginEnd="10dp"
+                android:background="@drawable/rounded_btn_bg"
+                android:text="@string/action_sign_in_short"
+                android:textColor="#FFFFFF"
+                android:textSize="25sp"
+                android:textStyle="bold" />
+
+
+            <Button
+                android:id="@+id/change_url_schema"
+                style="?android:textAppearanceButton"
+                android:layout_width="280dp"
+                android:layout_height="wrap_content"
+                android:layout_centerHorizontal="true"
+                android:layout_gravity="center"
+                android:layout_marginStart="10dp"
+                android:layout_marginTop="35dp"
+                android:layout_marginEnd="10dp"
+                android:layout_toEndOf="@+id/email_sign_in_button"
+                android:layout_toRightOf="@+id/email_sign_in_button"
+                android:background="@drawable/rounded_btn_bg"
+                android:text="@string/action_change_url_schema"
+                android:textColor="#FFFFFF"
+                android:textSize="25sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/error_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+
+        android:layout_marginStart="5dp"
+        android:layout_marginEnd="5dp"
+        android:visibility="gone">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/title_error_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="15dp"
+                android:text="ERRORE DI COMUNICAZIONE CON IL SERVER"
+                android:textAlignment="center"
+                android:textColor="@color/colorRed" />
+
+            <TextView
+                android:id="@+id/message_error_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@+id/title_error_text"
+                android:layout_gravity="center"
+                android:layout_marginTop="15dp"
+                android:text="Impossibile visualizzare la pagina web a causa di un possibile problema di connessione internet. Riavviare l'applicazione"
+                android:textAlignment="center"
+                android:textColor="@color/colorBlack" />
+        </RelativeLayout>
+
+
+    </LinearLayout>
+
+
+    <WebView
+        android:id="@+id/mainWebView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentLeft="true"
+        android:visibility="gone" />
+
+    <ProgressBar
+        android:id="@+id/mainProgressBar"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_centerInParent="true"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+</RelativeLayout>

@@ -1,3 +1,26 @@
 <resources>
-    <string name="app_name">logishift-android-kotlin</string>
+
+    <string name="app_name" translatable="false">LogiShift</string>
+
+    <!-- Strings related to login -->
+    <string name="action_sign_in_short">Check</string>
+    <string name="action_change_url_schema">Change Scheme</string>
+    <string name="server_label">Server</string>
+    <string name="server_label_hint" >Server Url</string>
+
+    <!-- Status bar menu string -->
+    <string name="menu_item_text_logout" >Logout</string>
+    <string name="menu_item_text_info" >Info</string>
+    <string name="menu_item_change_server_url_text">Change server</string>
+
+    <!-- Strings related to http login -->
+    <string name="server_successfully_logged_out">You have been logged out successfully</string>
+    <string name="server_sso_login_error">Error loading Single Sign On page</string>
+    <string name="server_sso_login_succesful">Loading Single Sign On page: success</string>
+
+    <string name="no_app_available_to_open_document">No app available on this device can open document</string>
+    <string name="action_save_url_schema">Save schema</string>
+    <string name="server_schema_error">Server schema is not correct</string>
+    <string name="save_schema_message">Save server schema before loggin in</string>
+
 </resources>
