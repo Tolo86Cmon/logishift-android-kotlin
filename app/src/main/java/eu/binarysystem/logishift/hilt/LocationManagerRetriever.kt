@@ -10,7 +10,7 @@ import javax.inject.Singleton
 
 @Singleton
 class LocationManagerRetriever @Inject constructor(@ApplicationContext val appContext: Context)  {
-    fun getLocationManager(): LocationManager{
+    fun getLocationManagerInstance(): LocationManager{
       return  appContext.getSystemService(LOCATION_SERVICE) as LocationManager
     }
 }

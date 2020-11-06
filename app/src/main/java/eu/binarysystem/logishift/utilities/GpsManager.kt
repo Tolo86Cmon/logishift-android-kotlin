@@ -9,12 +9,13 @@ import android.location.LocationManager
 import android.location.LocationManager.GPS_PROVIDER
 import android.location.LocationManager.NETWORK_PROVIDER
 import androidx.core.app.ActivityCompat
+import eu.binarysystem.logishift.utilities.Constants.Companion.MIN_DISTANCE_CHANGE_FOR_UPDATES
+import eu.binarysystem.logishift.utilities.Constants.Companion.MIN_TIME_BW_UPDATES
 import timber.log.Timber
 
 class GpsManager private constructor(
     private val context: Context,
-    private val locationManager: LocationManager
-) : LocationListener {
+    private val locationManager: LocationManager) : LocationListener {
 
     private var latitude: Double? = null
     private var longitude: Double? = null
@@ -28,21 +29,13 @@ class GpsManager private constructor(
         @Volatile
         private var GPSMANAGERISTANCE: GpsManager? = null
 
-        private const val MIN_DISTANCE_CHANGE_FOR_UPDATES: Float = 10F
-        private const val MIN_TIME_BW_UPDATES: Long = 1000 * 60 // 1 minute
-
-
         fun getInstance(context: Context, locationManager: LocationManager): GpsManager {
             if (GPSMANAGERISTANCE == null) {
                 GPSMANAGERISTANCE = GpsManager(context, locationManager)
-
             }
             Timber.d("GPSMANAGER -> instance called")
             return GPSMANAGERISTANCE as GpsManager
-
         }
-
-
     }
 
 
