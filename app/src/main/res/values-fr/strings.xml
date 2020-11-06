@@ -15,12 +15,15 @@
     <!-- Strings related to http login -->
     <string name="server_successfully_logged_out">Déconnexion réussie</string>
     <string name="server_sso_login_error">Erreur lors du chargement de la connexion unique de la page</string>
-    <string name="server_sso_login_succesful">Connexion unique réussie</string>
+    <string name="server_sso_login_successful">Connexion unique réussie</string>
 
     <string name="no_app_available_to_open_document">Aucune application sur l\'appareil ne peut ouvrir le document</string>
     <string name="action_change_url_schema">Changer de Schema</string>
     <string name="action_save_url_schema">" Enregistrer le schéma"</string>
     <string name="server_schema_error">" Le schéma du serveur n'est pas correct"</string>
     <string name="save_schema_message">" Enregistrez le schéma avant de vous connecter"</string>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+    <string name="server_communication_error_message" translatable="false">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 
 </resources>

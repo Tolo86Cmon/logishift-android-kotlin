@@ -15,11 +15,14 @@
     <!-- Strings related to http login -->
     <string name="server_successfully_logged_out">Cerrar sesión exitosamente</string>
     <string name="server_sso_login_error">Error al cargar el inicio de sesión único en la página</string>
-    <string name="server_sso_login_succesful">Inicio de sesión único en la carga exitosa</string>
+    <string name="server_sso_login_successful">Inicio de sesión único en la carga exitosa</string>
 
     <string name="no_app_available_to_open_document">Ninguna aplicación en el dispositivo puede abrir el documento</string>
     <string name="action_change_url_schema">Cambiar esquema</string>
     <string name="action_save_url_schema">"Guardar esquema"</string>
     <string name="server_schema_error">"El esquema del servidor no es correcto"</string>
     <string name="save_schema_message">"Guarde el esquema antes de iniciar sesión"</string>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+    <string name="server_communication_error_message" translatable="false">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 </resources>

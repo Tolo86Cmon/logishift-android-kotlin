@@ -15,11 +15,14 @@
     <!-- Strings related to http login -->
     <string name="server_successfully_logged_out">Abmeldung erfolgreich</string>
     <string name="server_sso_login_error">Fehler beim Laden der Seite beim einmaligen Anmelden</string>
-    <string name="server_sso_login_succesful">Single Sign On Upload erfolgreich</string>
+    <string name="server_sso_login_successful">Single Sign On Upload erfolgreich</string>
 
     <string name="no_app_available_to_open_document">Keine App auf dem Gerät kann das Dokument öffnen</string>
     <string name="action_change_url_schema">Schema wechseln</string>
     <string name="action_save_url_schema">" Schema speichern"</string>
     <string name="server_schema_error">" Das Serverschema ist nicht korrekt"</string>
     <string name="save_schema_message">" Speichern Sie das Schema, bevor Sie sich anmelden"</string>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+    <string name="server_communication_error_message" translatable="false">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 </resources>

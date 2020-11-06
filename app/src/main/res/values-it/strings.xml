@@ -15,11 +15,14 @@
     <!-- Strings related to http login -->
     <string name="server_successfully_logged_out">Logout effettuato correttamente</string>
     <string name="server_sso_login_error">Errore in caricamento pagina single sign on</string>
-    <string name="server_sso_login_succesful">Caricamento single sign on effettuato correttamente</string>
+    <string name="server_sso_login_successful">Caricamento single sign on effettuato correttamente</string>
 
-    <string name="no_app_available_to_open_document">Nessuna app presente sul dispositivo può aprire il documento</string>
+    <string name="no_app_available_to_open_document">Nessunvoa app presente sul dispositi può aprire il documento</string>
     <string name="action_change_url_schema">Cambia Schema</string>
     <string name="action_save_url_schema">Salva schema</string>
     <string name="server_schema_error">Server schema non corretto</string>
     <string name="save_schema_message">Salvare lo schema prima di effettuare il login</string>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+    <string name="server_communication_error_message" translatable="false">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 </resources>

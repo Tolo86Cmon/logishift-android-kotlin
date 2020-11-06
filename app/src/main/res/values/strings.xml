@@ -1,6 +1,6 @@
 <resources>
 
-    <string name="app_name" translatable="false">LogiShift</string>
+    <string name="app_name">LogiShift</string>
 
     <!-- Strings related to login -->
     <string name="action_sign_in_short">Check</string>
@@ -16,11 +16,14 @@
     <!-- Strings related to http login -->
     <string name="server_successfully_logged_out">You have been logged out successfully</string>
     <string name="server_sso_login_error">Error loading Single Sign On page</string>
-    <string name="server_sso_login_succesful">Loading Single Sign On page: success</string>
+    <string name="server_sso_login_successful">Loading Single Sign On page: success</string>
 
     <string name="no_app_available_to_open_document">No app available on this device can open document</string>
     <string name="action_save_url_schema">Save schema</string>
     <string name="server_schema_error">Server schema is not correct</string>
-    <string name="save_schema_message">Save server schema before loggin in</string>
+    <string name="save_schema_message">Save server schema before logging in</string>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMMUNICATION ERROR</string>
+    <string name="server_communication_error_message">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 
 </resources>

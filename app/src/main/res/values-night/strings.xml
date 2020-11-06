@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_scheme">https</string>
+    <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+</resources>
