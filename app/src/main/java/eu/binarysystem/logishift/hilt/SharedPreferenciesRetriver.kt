@@ -12,7 +12,7 @@ import javax.inject.Singleton
 class SharedPreferencesRetriever @Inject constructor(@ApplicationContext val appContext: Context) {
     fun getSharedManagerInstance(): SharedPreferences {
         return appContext.getSharedPreferences(
-            Constants.SHARED_PREFERENCES_INSTANCE_NAME,
+            Constants.SHARED_PREFERENCES_INSTANCE_NAME_CONST,
             AppCompatActivity.MODE_PRIVATE
         )
     }

@@ -25,4 +25,11 @@
     <string name="default_scheme">https</string>
     <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
     <string name="server_communication_error_message" translatable="false">Problem in rendering the page due a possible network problem. Try to restart the application</string>
+
+    <string name="gpsSettingsAlertDialogTitle">Positionseinstellungen</string>
+    <string name="gpsSettingsAlertDialogMessage">Standort nicht verfügbar. Öffnen Sie das Positionseinstellungsfeld</string>
+    <string name="gpsAlertDialogPositiveButtonText">die Einstellungen</string>
+    <string name="gpsAlertDialogNegativeButtonText">Stornieren</string>
+    <string name="mainActivityPermissionGrantedText">Genehmigungen erhalten</string>
+    <string name="mainActivityPermissionDeniedText">Berechtigungen verweigert</string>
 </resources>

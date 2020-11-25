@@ -26,4 +26,11 @@
     <string name="server_communication_error_title">SERVER COMMUNICATION ERROR</string>
     <string name="server_communication_error_message">Problem in rendering the page due a possible network problem. Try to restart the application</string>
 
+    <string name="gpsSettingsAlertDialogTitle">Position settings</string>
+    <string name="gpsSettingsAlertDialogMessage">Location not available. Open the position settings panel</string>
+    <string name="gpsAlertDialogPositiveButtonText">Settings</string>
+    <string name="gpsAlertDialogNegativeButtonText">Cancel</string>
+    <string name="mainActivityPermissionGrantedText">Permission Granted</string>
+    <string name="mainActivityPermissionDeniedText">Permission Denied</string>
+
 </resources>

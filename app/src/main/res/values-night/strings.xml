@@ -2,4 +2,10 @@
 <resources>
     <string name="default_scheme">https</string>
     <string name="server_communication_error_title">SERVER COMUNICATION ERROR</string>
+    <string name="gpsSettingsAlertDialogTitle">GPS is settings</string>
+    <string name="gpsSettingsAlertDialogMessage">GPS is not enabled. Do you want to go to settings menu?</string>
+    <string name="gpsAlertDialogPositiveButtonText">Settings</string>
+    <string name="gpsAlertDialogNegativeButtonText">Cancel</string>
+    <string name="mainActivityPermissionGrantedText">Permission Granted</string>
+    <string name="mainActivityPermissionDeniedText">Permission Denied</string>
 </resources>
