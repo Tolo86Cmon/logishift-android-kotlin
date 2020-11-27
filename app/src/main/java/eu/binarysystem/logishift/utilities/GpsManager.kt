@@ -167,7 +167,7 @@ class GpsManager private constructor(private val context: Context, private val l
 
     fun stopUsingGps(){
         Timber.d("GPSMANAGER stopUsing")
-       locationManager.removeUpdates(this)
+        locationManager.removeUpdates(this)
     }
 
     fun startUsingGps(){

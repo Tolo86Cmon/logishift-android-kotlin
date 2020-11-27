@@ -12,6 +12,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.webkit.*
 import android.widget.Toast
@@ -19,6 +21,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBar.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import dk.nodes.filepicker.FilePickerActivity
 import dk.nodes.filepicker.FilePickerConstants
@@ -28,36 +31,52 @@ import eu.binarysystem.logishift.hilt.SharedPreferencesRetriever
 import eu.binarysystem.logishift.utilities.ConnectionUtils
 import eu.binarysystem.logishift.utilities.Constants.Companion.BODY_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.FUNCTION_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.HTTP_SEPARATOR_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.JS_DO_LOG_OUT_COMMAND
+import eu.binarysystem.logishift.utilities.Constants.Companion.JS_OPEN_INFO_COMMAND
 import eu.binarysystem.logishift.utilities.Constants.Companion.LOGI_SHIFT_MOBILE_USER_AGENT_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.PERMISSIONS_ARRAY_ENUM
 import eu.binarysystem.logishift.utilities.Constants.Companion.PERMISSIONS_REQUEST_CODE_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.READ_UPLOADED_URI_CODE_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_HTTP_SCHEMA
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_BASE64_ICON
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_URL
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_URL_SERVER_ENVIRONMENT
+import eu.binarysystem.logishift.utilities.Constants.Companion.SSO_AUTH_URL_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY
 import eu.binarysystem.logishift.utilities.GpsManager
 import kotlinx.android.synthetic.main.webview_activity.*
+import okhttp3.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
+import java.io.IOException
+import java.net.HttpURLConnection.HTTP_OK
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class WebViewActivity : AppCompatActivity() {
     lateinit var webSettings: WebSettings
     lateinit var gpsManager: GpsManager
+
     private var extraPayloadIntentFunction: String? = null
     private var extraPayloadIntentBody: String? = null
+    var logishiftUrlEndPoint: String? = null
+    var environmentSSOUrl: String? = null
+    var base64StringIcon: String? = null
+    var lastHttpSchemeUsed: String? = null
+
     var grantResults = intArrayOf(0, 0, 0)
 
-
-    var logishiftUrlEndPoint: String? = null
-    var environmentUrl: String? = null
-    var base64StringIcon: String? = null
+    var isHttpErrorOccurred: Boolean = false;
+    var isCallingEditServer: Boolean = false
 
 
     @Inject lateinit var locationManager: LocationManagerRetriever
 
     @Inject lateinit var pref: SharedPreferencesRetriever
+
+
+    //AppCompatActivity Cycle method
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -67,23 +86,150 @@ class WebViewActivity : AppCompatActivity() {
 
         checkAppPermissions()
 
-        evaluateSharedVariables()
+        updateSharedVariables(false)
 
         setFirebasePayloadParameterExtra()
 
 
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (checkFineLocationPermission()) {
+            updateGpsLocation()
+        }
+        updateHttpLayoutSchema()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (checkFineLocationPermission()) {
+            GpsManager.getInstance(this, locationManager.getLocationManagerInstance())
+            gpsManager.stopUsingGps()
+        }
+
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        when (requestCode) {
+            PERMISSIONS_REQUEST_CODE_CONST -> {
+
+                if (grantResults.isNotEmpty()) {
+                    if (grantResults[2] == PackageManager.PERMISSION_GRANTED) {
+                        updateGpsLocation()
+                    }
+
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    }
+
+                    if (grantResults[1] == PackageManager.PERMISSION_GRANTED) {
+
+                    }
+
+                    Toast.makeText(this, getString(R.string.mainActivityPermissionGrantedText), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, getString(R.string.mainActivityPermissionDeniedText), Toast.LENGTH_SHORT).show()
+                }
+
+                return
+            }
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+
+        updateSharedVariables(false)
+
+        return if (!logishiftUrlEndPoint.isNullOrEmpty()) {
+            menuInflater.inflate(R.menu.manage_server_logging_menu, menu)
+            true
+        } else if (environmentSSOUrl.isNullOrEmpty()) {
+            false
+        } else {
+            menuInflater.inflate(R.menu.just_log_out_menu, menu)
+            true
+        }
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+
+
+        when (item.itemId) {
+            R.id.action_logout -> {
+                isCallingEditServer = false
+                callJavascript(JS_DO_LOG_OUT_COMMAND)
+            }
+            R.id.action_info -> {
+                callJavascript(JS_OPEN_INFO_COMMAND)
+            }
+            R.id.action_change_server -> {
+                isCallingEditServer = true
+                if (lastHttpSchemeUsed != null) {
+                    server_scheme_edit_text.setText(lastHttpSchemeUsed)
+                }
+
+
+                if (!logishiftUrlEndPoint.isNullOrEmpty()) {
+                    callJavascript(JS_DO_LOG_OUT_COMMAND)
+                } else {
+                    resetDomainAndLayout()
+                }
+            }
+        }
+        return super.onOptionsItemSelected(item)
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+    }
+
+
+    //BackupMethod
+
+    fun resetDomainAndLayout(){
+        updateSharedVariables(true)
+        sso_server_edit_text.setText("")
+        error_linear_layout.visibility = View.GONE
+        showCorrectAppLayoutByDomainUrl()
+        invalidateOptionsMenu()
+        Toast.makeText(applicationContext, R.string.server_successfully_logged_out, Toast.LENGTH_SHORT).show()
+    }
+
+
     private fun appSetup() {
         Timber.plant(DebugTree())
         setDisplayActionBarSetup()
         webSettingsSetup()
         webViewSetup()
+        clickListenerSetup()
+    }
+
+    private fun clickListenerSetup() {
+
+        check_sso_url_button.setOnClickListener {
+            environmentSSOUrl = sso_server_edit_text.text.toString()
+            ssoServerUrlManager(server_scheme_edit_text.text.toString())
+        }
+
+        change_url_schema_button.setOnClickListener {
+            if (!server_scheme_edit_text.isEnabled) {
+                server_scheme_edit_text.isEnabled = true
+                change_url_schema_button.text = resources.getString(R.string.action_save_url_schema)
+            } else {
+                if (server_scheme_edit_text.text.isNotEmpty() && (server_scheme_edit_text.text.toString() == "https" || server_scheme_edit_text.text.toString() == "https")) {
+                    server_scheme_edit_text.isEnabled = false
+                    change_url_schema_button.text = resources.getString(R.string.action_change_url_schema)
+                } else {
+                    Toast.makeText(applicationContext, R.string.server_schema_error, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun setDisplayActionBarSetup() {
         supportActionBar?.displayOptions = DISPLAY_USE_LOGO or DISPLAY_SHOW_HOME or DISPLAY_SHOW_TITLE
-
         resetActionBarIcon(this)
     }
 
@@ -98,15 +244,83 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
+    private fun callJavascript(javascriptStringCommand: String){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            main_web_view.evaluateJavascript(javascriptStringCommand, null)
+        }
+        else{
+            main_web_view.loadUrl("javascript:$javascriptStringCommand")
+        }
+    }
 
-    private fun showCorrectAppLayoutByDomainUrl(baseDomainUrl: String, logishiftAppUrl: String) {
 
-        if (baseDomainUrl.isEmpty()) {
+    private fun ssoServerUrlManager(serverScheme: String) {
+        login_progress_bar.visibility = View.VISIBLE
+        if (!server_scheme_edit_text.isEnabled) run {
+            try {
+                val okHttp3Client = OkHttpClient()
+
+                val okHttp3Request = Request.Builder().url(String.format("%s%s%s%s", serverScheme, HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_AUTH_URL_CONST)).build()
+
+                okHttp3Client.newCall(okHttp3Request).enqueue(object : Callback {
+
+                    override fun onFailure(call: Call, e: IOException) {
+                        this@WebViewActivity.runOnUiThread {
+                            login_progress_bar.visibility = View.INVISIBLE
+                            Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        if (response.code() == HTTP_OK) {
+                            pref.getDefaultSharedEditor().putString(SHARED_HTTP_SCHEMA, serverScheme).apply()
+                            pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, environmentSSOUrl)
+                            this@WebViewActivity.runOnUiThread {
+
+                                showCorrectAppLayoutByDomainUrl()
+
+                                Toast.makeText(applicationContext, R.string.server_sso_login_successful, Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            this@WebViewActivity.runOnUiThread {
+                                login_progress_bar.visibility = View.INVISIBLE
+                                Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show();
+
+                            }
+                        }
+                    }
+
+                })
+            } catch (exception: Exception) {
+                login_progress_bar.visibility = View.INVISIBLE
+                Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show()
+                FirebaseCrashlytics.getInstance().log("Error calling SSO login (" + String.format("%s%s%s%s", serverScheme, "://", environmentSSOUrl, SHARED_KEY_URL_SERVER_ENVIRONMENT) + ") ErrorMessage ->" + exception.getLocalizedMessage())
+                FirebaseCrashlytics.getInstance().recordException(exception)
+            }
+
+
+        } else {
+            login_progress_bar.visibility = View.INVISIBLE
+            Toast.makeText(applicationContext, R.string.save_schema_message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showCorrectAppLayoutByDomainUrl() {
+        updateSharedVariables(false)
+        if (environmentSSOUrl.isNullOrEmpty()) {
             main_web_view.visibility = View.GONE
             server_url_linear_layout.visibility = View.VISIBLE
         } else {
-
+            main_web_view.visibility = View.VISIBLE
+            server_url_linear_layout.visibility = View.VISIBLE
+            if (!logishiftUrlEndPoint.isNullOrEmpty()) {
+                main_web_view.loadUrl(logishiftUrlEndPoint!!)
+            } else {
+                main_web_view.loadUrl(String.format("%s%s%s%s", server_scheme_edit_text.text.toString(), HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_AUTH_URL_CONST))
+            }
         }
+
+        invalidateOptionsMenu()
     }
 
 
@@ -155,7 +369,7 @@ class WebViewActivity : AppCompatActivity() {
         main_web_view.setDownloadListener { url, _, _, _, _ ->
             try {
 
-                var intent = Intent(ACTION_VIEW)
+                val intent = Intent(ACTION_VIEW)
                 intent.data = Uri.parse(url)
                 startActivity(intent)
             } catch (e: Exception) {
@@ -168,40 +382,97 @@ class WebViewActivity : AppCompatActivity() {
 
         main_web_view.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-
+                isHttpErrorOccurred = false;
+                Timber.d("MainWebView onPageStarted - isHttpErrorOccurred -> %s", isHttpErrorOccurred)
                 super.onPageStarted(view, url, favicon)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                //Se l'errore http è avvenuto prima del termine del caricamento della pagina lo ignoro e resetto il flag a false
+                if (isHttpErrorOccurred) {
+                    error_linear_layout.visibility = View.GONE
+                }
+                isHttpErrorOccurred = false;
                 super.onPageFinished(view, url)
             }
 
             override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
-
+                isHttpErrorOccurred = true
+                Timber.d("MainWebView onPageStarted - errorResponse -> %s", errorResponse)
                 super.onReceivedHttpError(view, request, errorResponse)
             }
 
-            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
 
+            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                isHttpErrorOccurred = true
+                Timber.d("MainWebView onReceivedError general - errorResponse -> %s", description)
+                if (description != "net::ERR_FAILED") {
+                    showHttpErrorLayout()
+                }
+            }
+
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                isHttpErrorOccurred = true
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    error!!.description != "net::ERR_FAILED"
+                    showHttpErrorLayout()
+                }
                 super.onReceivedError(view, request, error)
             }
 
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-
-                return super.shouldOverrideUrlLoading(view, request)
+            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                Timber.d("MainWebView shouldOverrideUrlLoading new old URL %s", url)
+                return handleHttpUriBeforeRedirecting(Uri.parse(url))
             }
 
-            @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP) override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return super.shouldOverrideUrlLoading(view, url)
+            @RequiresApi(Build.VERSION_CODES.LOLLIPOP) override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                Timber.d("MainWebView shouldOverrideUrlLoading new HOST %s SCHEMA %s", request?.url?.host, request?.url?.scheme)
+                return handleHttpUriBeforeRedirecting(request?.url)
             }
         }
 
     }
 
-    private fun evaluateSharedVariables() {
-        environmentUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
+    private fun handleHttpUriBeforeRedirecting(uri: Uri?): Boolean {
+        val host: String? = uri?.host
+        val scheme: String? = uri?.scheme
+
+        if (host != null && scheme != null) {
+            for (string: String in STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY) {
+                if (!host.contains(string)) {
+                    continue
+                } else {
+                    return if (string == "tel") {
+                        val intent = Intent(Intent.ACTION_DIAL)
+                        intent.data = uri
+                        startActivity(intent)
+                        true
+                    } else {
+                        val intent = Intent(ACTION_VIEW)
+                        intent.data = uri
+                        startActivity(intent)
+                        true
+                    }
+                }
+            }
+            return false
+        } else {
+            return false
+        }
+    }
+
+
+    private fun updateSharedVariables(isCallingReset: Boolean) {
+        if (isCallingReset){
+            pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null).apply()
+            pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_URL, null).apply()
+            pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
+            pref.getDefaultSharedEditor().putString(SHARED_HTTP_SCHEMA, null)
+        }
+        environmentSSOUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
         logishiftUrlEndPoint = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
         base64StringIcon = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
+        lastHttpSchemeUsed = pref.getSharedManagerInstance().getString(SHARED_HTTP_SCHEMA, null)
     }
 
     private fun checkFineLocationPermission(): Boolean {
@@ -223,57 +494,27 @@ class WebViewActivity : AppCompatActivity() {
 
     }
 
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        when (requestCode) {
-            PERMISSIONS_REQUEST_CODE_CONST -> {
-
-                if (grantResults.isNotEmpty()) {
-                    if (grantResults[2] == PackageManager.PERMISSION_GRANTED) {
-                        updateGpsLocation()
-                    }
-
-                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                    }
-
-                    if (grantResults[1] == PackageManager.PERMISSION_GRANTED) {
-
-                    }
-
-                    Toast.makeText(this, getString(R.string.mainActivityPermissionGrantedText), Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, getString(R.string.mainActivityPermissionDeniedText), Toast.LENGTH_SHORT).show()
-                }
-
-                return
-            }
-        }
+    private fun showHttpErrorLayout() {
+        check_sso_url_button.visibility = View.GONE
+        server_url_linear_layout.visibility = View.GONE
+        error_linear_layout.visibility = View.VISIBLE
     }
+
 
     private fun updateGpsLocation() {
         gpsManager = GpsManager.getInstance(this, locationManager.getLocationManagerInstance())
-        if (!gpsManager.retrieveLocation()){
+        if (!gpsManager.retrieveLocation()) {
             gpsManager.showSettingsAlert(this)
         }
 
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (checkFineLocationPermission()) {
-            GpsManager.getInstance(this, locationManager.getLocationManagerInstance())
-            gpsManager.startUsingGps()
-        }
-    }
 
-    override fun onPause() {
-        super.onPause()
-        if (checkFineLocationPermission()) {
-            GpsManager.getInstance(this, locationManager.getLocationManagerInstance())
-            gpsManager.stopUsingGps()
+    private fun updateHttpLayoutSchema() {
+       updateSharedVariables(false)
+        if (lastHttpSchemeUsed != null) {
+            server_scheme_edit_text.setText(lastHttpSchemeUsed)
         }
-
     }
 
 
