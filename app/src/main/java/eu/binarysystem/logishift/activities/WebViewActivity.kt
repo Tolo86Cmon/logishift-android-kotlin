@@ -32,7 +32,11 @@ import eu.binarysystem.logishift.utilities.ConnectionUtils
 import eu.binarysystem.logishift.utilities.Constants.Companion.BODY_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.FUNCTION_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.HTTP_SEPARATOR_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.INTENT_EXTRA_FUNCTION_NEWS_SHIFT
+import eu.binarysystem.logishift.utilities.Constants.Companion.INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY
 import eu.binarysystem.logishift.utilities.Constants.Companion.JS_DO_LOG_OUT_COMMAND
+import eu.binarysystem.logishift.utilities.Constants.Companion.JS_NEW_SHIFT_NOTIFICATION_COMMAND
+import eu.binarysystem.logishift.utilities.Constants.Companion.JS_NOT_AVAILABILITY_UPDATE_COMMAND
 import eu.binarysystem.logishift.utilities.Constants.Companion.JS_OPEN_INFO_COMMAND
 import eu.binarysystem.logishift.utilities.Constants.Companion.LOGI_SHIFT_MOBILE_USER_AGENT_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.PERMISSIONS_ARRAY_ENUM
@@ -42,10 +46,15 @@ import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_HTTP_SCHEM
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_BASE64_ICON
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_URL
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_URL_SERVER_ENVIRONMENT
-import eu.binarysystem.logishift.utilities.Constants.Companion.SSO_AUTH_URL_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_NEW_SHIFT_BACKGROUND_COUNTER
+import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_NOT_AVAILABILITY_BACKGROUND_COUNTER
+import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_PAYLOAD_MESSAGE
+import eu.binarysystem.logishift.utilities.Constants.Companion.SSO_MAIN_AUTH_URL_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY
 import eu.binarysystem.logishift.utilities.GpsManager
+import eu.binarysystem.logishift.utilities.QueueManager
 import kotlinx.android.synthetic.main.webview_activity.*
+import me.leolin.shortcutbadger.ShortcutBadger
 import okhttp3.*
 import timber.log.Timber
 import timber.log.Timber.DebugTree
@@ -55,11 +64,21 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class WebViewActivity : AppCompatActivity() {
+    @Inject lateinit var locationManager: LocationManagerRetriever
+    @Inject lateinit var pref: SharedPreferencesRetriever
+
+
     lateinit var webSettings: WebSettings
     lateinit var gpsManager: GpsManager
 
-    private var extraPayloadIntentFunction: String? = null
-    private var extraPayloadIntentBody: String? = null
+    private var extraPayloadFunction: String? = null
+    private var extraPayloadMessage: String? = null
+
+    private var backgroundSharedPayloadMessage: String? = null
+    private var backgroundSharedNewShiftCounter: Int = 0
+    private var backgroundSharedNotAvailabilityCounter: Int = 0
+
+
     var logishiftUrlEndPoint: String? = null
     var environmentSSOUrl: String? = null
     var base64StringIcon: String? = null
@@ -67,13 +86,9 @@ class WebViewActivity : AppCompatActivity() {
 
     var grantResults = intArrayOf(0, 0, 0)
 
-    var isHttpErrorOccurred: Boolean = false;
+    var isHttpErrorOccurred: Boolean = false
     var isCallingEditServer: Boolean = false
-
-
-    @Inject lateinit var locationManager: LocationManagerRetriever
-
-    @Inject lateinit var pref: SharedPreferencesRetriever
+    var isApplicationInForeGround: Boolean = false
 
 
     //AppCompatActivity Cycle method
@@ -83,12 +98,13 @@ class WebViewActivity : AppCompatActivity() {
         setContentView(R.layout.webview_activity)
 
         appSetup()
+        val queueManager: QueueManager = QueueManager.getInstance(applicationContext,pref)
 
         checkAppPermissions()
 
         updateSharedVariables(false)
 
-        setFirebasePayloadParameterExtra()
+        setFirebaseMessagingPayloadParameterExtra()
 
 
     }
@@ -99,6 +115,17 @@ class WebViewActivity : AppCompatActivity() {
             updateGpsLocation()
         }
         updateHttpLayoutSchema()
+
+
+
+        setNotificationBackGroundMessageAndCounter()
+
+        callBackEndJavascriptCommandsIfNeeded()
+
+        resetNotificationBackGroundMessageAndCounter()
+
+        setActivityVisibility(true)
+
     }
 
     override fun onPause() {
@@ -108,6 +135,7 @@ class WebViewActivity : AppCompatActivity() {
             gpsManager.stopUsingGps()
         }
 
+        setActivityVisibility(false)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
@@ -188,7 +216,16 @@ class WebViewActivity : AppCompatActivity() {
 
     //BackupMethod
 
-    fun resetDomainAndLayout(){
+    private fun appSetup() {
+        Timber.plant(DebugTree())
+        setDisplayActionBarSetup()
+        webSettingsSetup()
+        webViewSetup()
+        clickListenerSetup()
+    }
+
+
+    fun resetDomainAndLayout() {
         updateSharedVariables(true)
         sso_server_edit_text.setText("")
         error_linear_layout.visibility = View.GONE
@@ -198,16 +235,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-    private fun appSetup() {
-        Timber.plant(DebugTree())
-        setDisplayActionBarSetup()
-        webSettingsSetup()
-        webViewSetup()
-        clickListenerSetup()
-    }
-
     private fun clickListenerSetup() {
-
         check_sso_url_button.setOnClickListener {
             environmentSSOUrl = sso_server_edit_text.text.toString()
             ssoServerUrlManager(server_scheme_edit_text.text.toString())
@@ -228,6 +256,11 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
+
+    fun setActivityVisibility(isApplicationInForeGround: Boolean){
+        this.isApplicationInForeGround = isApplicationInForeGround
+    }
+
     private fun setDisplayActionBarSetup() {
         supportActionBar?.displayOptions = DISPLAY_USE_LOGO or DISPLAY_SHOW_HOME or DISPLAY_SHOW_TITLE
         resetActionBarIcon(this)
@@ -244,11 +277,10 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun callJavascript(javascriptStringCommand: String){
+    private fun callJavascript(javascriptStringCommand: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             main_web_view.evaluateJavascript(javascriptStringCommand, null)
-        }
-        else{
+        } else {
             main_web_view.loadUrl("javascript:$javascriptStringCommand")
         }
     }
@@ -260,7 +292,7 @@ class WebViewActivity : AppCompatActivity() {
             try {
                 val okHttp3Client = OkHttpClient()
 
-                val okHttp3Request = Request.Builder().url(String.format("%s%s%s%s", serverScheme, HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_AUTH_URL_CONST)).build()
+                val okHttp3Request = Request.Builder().url(String.format("%s%s%s%s", serverScheme, HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_MAIN_AUTH_URL_CONST)).build()
 
                 okHttp3Client.newCall(okHttp3Request).enqueue(object : Callback {
 
@@ -316,7 +348,7 @@ class WebViewActivity : AppCompatActivity() {
             if (!logishiftUrlEndPoint.isNullOrEmpty()) {
                 main_web_view.loadUrl(logishiftUrlEndPoint!!)
             } else {
-                main_web_view.loadUrl(String.format("%s%s%s%s", server_scheme_edit_text.text.toString(), HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_AUTH_URL_CONST))
+                main_web_view.loadUrl(String.format("%s%s%s%s", server_scheme_edit_text.text.toString(), HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_MAIN_AUTH_URL_CONST))
             }
         }
 
@@ -324,17 +356,48 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-    private fun setFirebasePayloadParameterExtra() {
+    private fun setNotificationBackGroundMessageAndCounter() {
+        backgroundSharedPayloadMessage = pref.getSharedManagerInstance().getString(SHARED_NOTIFICATION_PAYLOAD_MESSAGE, null)
+        backgroundSharedNewShiftCounter = pref.getSharedManagerInstance().getInt(SHARED_NOTIFICATION_NEW_SHIFT_BACKGROUND_COUNTER, 0)
+        backgroundSharedNotAvailabilityCounter = pref.getSharedManagerInstance().getInt(SHARED_NOTIFICATION_NOT_AVAILABILITY_BACKGROUND_COUNTER, 0)
+
+    }
+
+    private fun resetNotificationBackGroundMessageAndCounter() {
+        pref.getDefaultSharedEditor().putString(SHARED_NOTIFICATION_PAYLOAD_MESSAGE, null)
+        pref.getDefaultSharedEditor().putInt(SHARED_NOTIFICATION_NEW_SHIFT_BACKGROUND_COUNTER, 0)
+        pref.getDefaultSharedEditor().putInt(SHARED_NOTIFICATION_NOT_AVAILABILITY_BACKGROUND_COUNTER, 0)
+
+    }
+
+
+    private fun setFirebaseMessagingPayloadParameterExtra() {
         val extraFirebasePayLoadIntent: Bundle? = intent.extras
         if (extraFirebasePayLoadIntent != null) {
             if (extraFirebasePayLoadIntent.containsKey(FUNCTION_CONST)) {
-                extraPayloadIntentFunction = extraFirebasePayLoadIntent.getString(FUNCTION_CONST)
+                extraPayloadFunction = extraFirebasePayLoadIntent.getString(FUNCTION_CONST)
             }
             if (extraFirebasePayLoadIntent.containsKey(BODY_CONST)) {
-                extraPayloadIntentBody = extraFirebasePayLoadIntent.getString(BODY_CONST)
+                extraPayloadMessage = extraFirebasePayLoadIntent.getString(BODY_CONST)
             }
+        }
+    }
 
-
+    private fun callBackEndJavascriptCommandsIfNeeded() {
+        if (extraPayloadFunction != null) {
+            if (extraPayloadFunction == INTENT_EXTRA_FUNCTION_NEWS_SHIFT) {
+                callJavascript(JS_NEW_SHIFT_NOTIFICATION_COMMAND)
+            } else if (extraPayloadFunction == INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY) {
+                if (extraPayloadMessage != null) {
+                    callJavascript(JS_NOT_AVAILABILITY_UPDATE_COMMAND(extraPayloadMessage))
+                }
+            }
+        } else if (backgroundSharedNewShiftCounter > 0) {
+            callJavascript(JS_NEW_SHIFT_NOTIFICATION_COMMAND)
+            ShortcutBadger.removeCount(applicationContext)
+        } else if (backgroundSharedNotAvailabilityCounter > 0 && backgroundSharedPayloadMessage != null) {
+            callJavascript(JS_NOT_AVAILABILITY_UPDATE_COMMAND(backgroundSharedPayloadMessage))
+            ShortcutBadger.removeCount(applicationContext)
         }
     }
 
@@ -392,7 +455,10 @@ class WebViewActivity : AppCompatActivity() {
                 if (isHttpErrorOccurred) {
                     error_linear_layout.visibility = View.GONE
                 }
-                isHttpErrorOccurred = false;
+                isHttpErrorOccurred = false
+
+                callBackEndJavascriptCommandsIfNeeded()
+
                 super.onPageFinished(view, url)
             }
 
@@ -463,7 +529,7 @@ class WebViewActivity : AppCompatActivity() {
 
 
     private fun updateSharedVariables(isCallingReset: Boolean) {
-        if (isCallingReset){
+        if (isCallingReset) {
             pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null).apply()
             pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_URL, null).apply()
             pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
@@ -511,7 +577,7 @@ class WebViewActivity : AppCompatActivity() {
 
 
     private fun updateHttpLayoutSchema() {
-       updateSharedVariables(false)
+        updateSharedVariables(false)
         if (lastHttpSchemeUsed != null) {
             server_scheme_edit_text.setText(lastHttpSchemeUsed)
         }
