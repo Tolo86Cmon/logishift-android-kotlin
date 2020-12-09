@@ -1,8 +1,11 @@
 package eu.binarysystem.logishift.activities
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.Intent.ACTION_VIEW
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -28,8 +31,10 @@ import dk.nodes.filepicker.FilePickerConstants
 import eu.binarysystem.logishift.R
 import eu.binarysystem.logishift.hilt.LocationManagerRetriever
 import eu.binarysystem.logishift.hilt.SharedPreferencesRetriever
+import eu.binarysystem.logishift.jsInterfacesUtility.JsWebBackendInterfaceslocationManager
 import eu.binarysystem.logishift.utilities.ConnectionUtils
 import eu.binarysystem.logishift.utilities.Constants.Companion.BODY_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.FUNCTION_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.HTTP_SEPARATOR_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.INTENT_EXTRA_FUNCTION_NEWS_SHIFT
@@ -42,6 +47,8 @@ import eu.binarysystem.logishift.utilities.Constants.Companion.LOGI_SHIFT_MOBILE
 import eu.binarysystem.logishift.utilities.Constants.Companion.PERMISSIONS_ARRAY_ENUM
 import eu.binarysystem.logishift.utilities.Constants.Companion.PERMISSIONS_REQUEST_CODE_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.READ_UPLOADED_URI_CODE_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.RESET_VARIABLES
+import eu.binarysystem.logishift.utilities.Constants.Companion.SAVE_VARIABLES
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_HTTP_SCHEMA
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_BASE64_ICON
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_LOGI_SHIFT_URL
@@ -51,13 +58,12 @@ import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATI
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_PAYLOAD_MESSAGE
 import eu.binarysystem.logishift.utilities.Constants.Companion.SSO_MAIN_AUTH_URL_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY
+import eu.binarysystem.logishift.utilities.Constants.Companion.UPDATE_VARIABLES
 import eu.binarysystem.logishift.utilities.GpsManager
-import eu.binarysystem.logishift.utilities.QueueManager
 import kotlinx.android.synthetic.main.webview_activity.*
 import me.leolin.shortcutbadger.ShortcutBadger
 import okhttp3.*
 import timber.log.Timber
-import timber.log.Timber.DebugTree
 import java.io.IOException
 import java.net.HttpURLConnection.HTTP_OK
 import javax.inject.Inject
@@ -79,6 +85,8 @@ class WebViewActivity : AppCompatActivity() {
     private var backgroundSharedNotAvailabilityCounter: Int = 0
 
 
+    private lateinit var multiFunctionBroadcastReceiver: BroadcastReceiver
+
     var logishiftUrlEndPoint: String? = null
     var environmentSSOUrl: String? = null
     var base64StringIcon: String? = null
@@ -90,41 +98,47 @@ class WebViewActivity : AppCompatActivity() {
     var isCallingEditServer: Boolean = false
     var isApplicationInForeGround: Boolean = false
 
+    var latitude: Double? = 0.0
+    var longitude: Double? = 0.0
+    var accuracy: Float? = 0.0F
+
 
     //AppCompatActivity Cycle method
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.webview_activity)
 
-        appSetup()
-        val queueManager: QueueManager = QueueManager.getInstance(applicationContext,pref)
+        Timber.plant(Timber.DebugTree())
+
+        setContentView(R.layout.webview_activity)
 
         checkAppPermissions()
 
-        updateSharedVariables(false)
+
 
         setFirebaseMessagingPayloadParameterExtra()
 
+    }
 
+    override fun onDestroy() {
+        unregisterReceiver(multiFunctionBroadcastReceiver)
+        super.onDestroy()
     }
 
     override fun onResume() {
         super.onResume()
+        setActivityVisibility(true)
         if (checkFineLocationPermission()) {
             updateGpsLocation()
         }
+        Timber.d("OnResume updateHttpLayoutSchema PRE update variables ")
         updateHttpLayoutSchema()
-
-
 
         setNotificationBackGroundMessageAndCounter()
 
         callBackEndJavascriptCommandsIfNeeded()
 
         resetNotificationBackGroundMessageAndCounter()
-
-        setActivityVisibility(true)
 
     }
 
@@ -145,6 +159,7 @@ class WebViewActivity : AppCompatActivity() {
                 if (grantResults.isNotEmpty()) {
                     if (grantResults[2] == PackageManager.PERMISSION_GRANTED) {
                         updateGpsLocation()
+                        appSetup()
                     }
 
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -166,9 +181,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-
-        updateSharedVariables(false)
-
+        Timber.d("onCreateOptionsMenu")
         return if (!logishiftUrlEndPoint.isNullOrEmpty()) {
             menuInflater.inflate(R.menu.manage_server_logging_menu, menu)
             true
@@ -181,7 +194,6 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-
 
         when (item.itemId) {
             R.id.action_logout -> {
@@ -196,7 +208,6 @@ class WebViewActivity : AppCompatActivity() {
                 if (lastHttpSchemeUsed != null) {
                     server_scheme_edit_text.setText(lastHttpSchemeUsed)
                 }
-
 
                 if (!logishiftUrlEndPoint.isNullOrEmpty()) {
                     callJavascript(JS_DO_LOG_OUT_COMMAND)
@@ -217,16 +228,18 @@ class WebViewActivity : AppCompatActivity() {
     //BackupMethod
 
     private fun appSetup() {
-        Timber.plant(DebugTree())
         setDisplayActionBarSetup()
         webSettingsSetup()
         webViewSetup()
-        clickListenerSetup()
+        addListenerSetup()
+        registerReceiver(multiFunctionBroadcastReceiver, IntentFilter(CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST))
+        showCorrectAppLayoutByDomainUrl()
     }
 
 
     fun resetDomainAndLayout() {
-        updateSharedVariables(true)
+        Timber.d("resetDomainAndLayout")
+        updateSharedVariablesManager(RESET_VARIABLES)
         sso_server_edit_text.setText("")
         error_linear_layout.visibility = View.GONE
         showCorrectAppLayoutByDomainUrl()
@@ -235,7 +248,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-    private fun clickListenerSetup() {
+    private fun addListenerSetup() {
         check_sso_url_button.setOnClickListener {
             environmentSSOUrl = sso_server_edit_text.text.toString()
             ssoServerUrlManager(server_scheme_edit_text.text.toString())
@@ -254,10 +267,19 @@ class WebViewActivity : AppCompatActivity() {
                 }
             }
         }
+
+        multiFunctionBroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                Timber.d("INTENT CALLED %s", intent?.action)
+            }
+
+        }
+
+
     }
 
 
-    fun setActivityVisibility(isApplicationInForeGround: Boolean){
+    fun setActivityVisibility(isApplicationInForeGround: Boolean) {
         this.isApplicationInForeGround = isApplicationInForeGround
     }
 
@@ -277,7 +299,7 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
-    private fun callJavascript(javascriptStringCommand: String) {
+    fun callJavascript(javascriptStringCommand: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
             main_web_view.evaluateJavascript(javascriptStringCommand, null)
         } else {
@@ -305,12 +327,10 @@ class WebViewActivity : AppCompatActivity() {
 
                     override fun onResponse(call: Call, response: Response) {
                         if (response.code() == HTTP_OK) {
-                            pref.getDefaultSharedEditor().putString(SHARED_HTTP_SCHEMA, serverScheme).apply()
-                            pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, environmentSSOUrl)
+                            updateSharedVariablesManager(SAVE_VARIABLES, hashMapOf(SHARED_HTTP_SCHEMA to serverScheme, SHARED_KEY_URL_SERVER_ENVIRONMENT to environmentSSOUrl))
                             this@WebViewActivity.runOnUiThread {
-
+                                login_progress_bar.visibility = View.INVISIBLE
                                 showCorrectAppLayoutByDomainUrl()
-
                                 Toast.makeText(applicationContext, R.string.server_sso_login_successful, Toast.LENGTH_SHORT).show()
                             }
                         } else {
@@ -338,13 +358,14 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun showCorrectAppLayoutByDomainUrl() {
-        updateSharedVariables(false)
+        Timber.d("showCorrectAppLayoutByDomainUrl  environmentSSOUrl ->%s logishiftUrlEndPoint ->%s", environmentSSOUrl, logishiftUrlEndPoint)
+        updateSharedVariablesManager(UPDATE_VARIABLES, hashMapOf(SHARED_KEY_URL_SERVER_ENVIRONMENT to environmentSSOUrl, SHARED_KEY_LOGI_SHIFT_URL to logishiftUrlEndPoint))
         if (environmentSSOUrl.isNullOrEmpty()) {
             main_web_view.visibility = View.GONE
             server_url_linear_layout.visibility = View.VISIBLE
         } else {
             main_web_view.visibility = View.VISIBLE
-            server_url_linear_layout.visibility = View.VISIBLE
+            server_url_linear_layout.visibility = View.GONE
             if (!logishiftUrlEndPoint.isNullOrEmpty()) {
                 main_web_view.loadUrl(logishiftUrlEndPoint!!)
             } else {
@@ -428,6 +449,8 @@ class WebViewActivity : AppCompatActivity() {
                 return true
             }
         }
+
+        main_web_view.addJavascriptInterface(JsWebBackendInterfaceslocationManager(applicationContext, this, gpsManager, locationManager, pref), "Android")
 
         main_web_view.setDownloadListener { url, _, _, _, _ ->
             try {
@@ -528,17 +551,49 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-    private fun updateSharedVariables(isCallingReset: Boolean) {
-        if (isCallingReset) {
-            pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null).apply()
-            pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_URL, null).apply()
-            pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
-            pref.getDefaultSharedEditor().putString(SHARED_HTTP_SCHEMA, null)
+     fun updateSharedVariablesManager(function: String, variablesMap: HashMap<String, String?> = hashMapOf()) {
+        Timber.d("updateSharedVariables isCallingReset  %s", function)
+        when (function) {
+            RESET_VARIABLES -> {
+                pref.getDefaultSharedEditor().putString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null).apply()
+                pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_URL, null).apply()
+                pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null).apply()
+                pref.getDefaultSharedEditor().putString(SHARED_HTTP_SCHEMA, null).apply()
+
+                environmentSSOUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
+                logishiftUrlEndPoint = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
+                base64StringIcon = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
+                lastHttpSchemeUsed = pref.getSharedManagerInstance().getString(SHARED_HTTP_SCHEMA, null)
+            }
+            UPDATE_VARIABLES -> {
+                for ((key) in variablesMap) {
+                    when (key) {
+                        SHARED_KEY_URL_SERVER_ENVIRONMENT -> environmentSSOUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
+                        SHARED_KEY_LOGI_SHIFT_URL -> logishiftUrlEndPoint = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
+                        SHARED_KEY_LOGI_SHIFT_BASE64_ICON -> base64StringIcon = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
+                        SHARED_HTTP_SCHEMA -> lastHttpSchemeUsed = pref.getSharedManagerInstance().getString(SHARED_HTTP_SCHEMA, null)
+                    }
+                }
+            }
+            SAVE_VARIABLES -> {
+                for ((key, value) in variablesMap) {
+                    pref.getDefaultSharedEditor().putString(key, value).apply()
+                    when (key) {
+                        SHARED_KEY_URL_SERVER_ENVIRONMENT -> environmentSSOUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
+                        SHARED_KEY_LOGI_SHIFT_URL -> logishiftUrlEndPoint = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
+                        SHARED_KEY_LOGI_SHIFT_BASE64_ICON -> base64StringIcon = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
+                        SHARED_HTTP_SCHEMA -> lastHttpSchemeUsed = pref.getSharedManagerInstance().getString(SHARED_HTTP_SCHEMA, null)
+                    }
+                }
+            }
         }
-        environmentSSOUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_URL_SERVER_ENVIRONMENT, null)
-        logishiftUrlEndPoint = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
-        base64StringIcon = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
-        lastHttpSchemeUsed = pref.getSharedManagerInstance().getString(SHARED_HTTP_SCHEMA, null)
+
+
+
+
+
+
+        Timber.d("updateSharedVariables environmentSSOUrl %s logishiftUrlEndPoint %s base64StringIcon %s,lastHttpSchemeUsed %s ", environmentSSOUrl, logishiftUrlEndPoint, base64StringIcon, lastHttpSchemeUsed)
     }
 
     private fun checkFineLocationPermission(): Boolean {
@@ -571,13 +626,16 @@ class WebViewActivity : AppCompatActivity() {
         gpsManager = GpsManager.getInstance(this, locationManager.getLocationManagerInstance())
         if (!gpsManager.retrieveLocation()) {
             gpsManager.showSettingsAlert(this)
+            latitude = gpsManager.getBetterLatitude()
+            longitude = gpsManager.getBetterLongitude()
+            accuracy = gpsManager.getBetterAccuracy()
         }
 
     }
 
 
     private fun updateHttpLayoutSchema() {
-        updateSharedVariables(false)
+        updateSharedVariablesManager(UPDATE_VARIABLES, hashMapOf(SHARED_HTTP_SCHEMA to lastHttpSchemeUsed))
         if (lastHttpSchemeUsed != null) {
             server_scheme_edit_text.setText(lastHttpSchemeUsed)
         }

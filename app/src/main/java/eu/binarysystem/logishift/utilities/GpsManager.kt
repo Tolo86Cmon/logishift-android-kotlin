@@ -118,7 +118,7 @@ class GpsManager private constructor(private val context: Context, private val l
         locationManager.requestLocationUpdates(provider, MIN_TIME_BW_UPDATES_CONST, MIN_DISTANCE_CHANGE_FOR_UPDATES_CONST, this)
     }
 
-     private fun checkAtLeastOneLocationProvidersAvailable(): Boolean {
+      fun checkAtLeastOneLocationProvidersAvailable(): Boolean {
         return try {
             isWifiEnable = locationManager.isProviderEnabled(NETWORK_PROVIDER)
             isGpsEnable = locationManager.isProviderEnabled(GPS_PROVIDER)

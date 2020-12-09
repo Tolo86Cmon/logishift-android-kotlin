@@ -87,9 +87,9 @@ class BackendCommunicationManager(private var context: Context, private var pref
 
     private fun createBackendUserJsonData(): JSONObject? {
         val pushToken: String? = pref.getSharedManagerInstance().getString(SHARED_KEY_PREF_PUSH_TOKEN, null)
+        Timber.d("callBackend  createBackendUserJsonData uuid %s app_version %s os %s push_token %s device_model %s",uuid,packageVersion,systemVersion,pushToken,mobileBrandName)
 
-
-        val jsonObject = JSONObject()
+        var jsonObject = JSONObject()
         try {
             jsonObject.put("uuid", uuid)
             jsonObject.put("app_version", packageVersion)
@@ -108,7 +108,7 @@ class BackendCommunicationManager(private var context: Context, private var pref
 
     private fun createPushJsonData(authToken: String?, userEmail: String?, pushToken: String?): JSONObject? {
 
-        val jsonObject = JSONObject()
+        var jsonObject = JSONObject()
         try {
             jsonObject.put("auth_token", authToken)
             jsonObject.put("uuid", uuid)
@@ -123,7 +123,7 @@ class BackendCommunicationManager(private var context: Context, private var pref
 
 
      fun sendDataToBackEnd(url: String, data: String, backendCallBack: BackendCallBack) {
-
+         Timber.d("callBackend - url passed  %s", url)
         completeLogishiftEmployeeUrl = pref.getSharedManagerInstance().getString(SHARED_KEY_LOGI_SHIFT_URL, null)
         Timber.d("callBackend - backend url pre replace %s", completeLogishiftEmployeeUrl)
         if (completeLogishiftEmployeeUrl != null) {
@@ -150,7 +150,7 @@ class BackendCommunicationManager(private var context: Context, private var pref
                         override fun onResponse(call: Call, response: Response) {
 
                             try {
-                                val jsonResponse = JSONObject(response.body().toString())
+                                val jsonResponse = JSONObject(response.body()!!.string())
                                 if (jsonResponse.getBoolean("success")) {
                                     backendCallBack.onBackendCallBackResponse(jsonResponse.toString())
                                 } else {

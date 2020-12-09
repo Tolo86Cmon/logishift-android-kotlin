@@ -7,10 +7,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import eu.binarysystem.logishift.activities.WebViewActivity
 import eu.binarysystem.logishift.hilt.SharedPreferencesRetriever
 import eu.binarysystem.logishift.utilities.Constants.Companion.BODY_CONST
-import eu.binarysystem.logishift.utilities.Constants.Companion.BROADCAST_INTENT_ACTION_CONST
+import eu.binarysystem.logishift.utilities.Constants.Companion.CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.FUNCTION_CONST
 import eu.binarysystem.logishift.utilities.Constants.Companion.INTENT_EXTRA_FUNCTION_NEWS_SHIFT
 import eu.binarysystem.logishift.utilities.Constants.Companion.INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY
+import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_KEY_PREF_PUSH_TOKEN
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_NEW_SHIFT_BACKGROUND_COUNTER
 import eu.binarysystem.logishift.utilities.Constants.Companion.SHARED_NOTIFICATION_NOT_AVAILABILITY_BACKGROUND_COUNTER
 import eu.binarysystem.logishift.utilities.Constants.Companion.TITLE_CONST
@@ -33,7 +34,8 @@ class FirebaseCloudMessagingService : FirebaseMessagingService() {
     private lateinit var webViewActivity: WebViewActivity
 
     override fun onNewToken(refreshedToken: String) {
-        Timber.d("Cloud Message Refreshed token: %s", refreshedToken)
+        pref.getDefaultSharedEditor().putString(SHARED_KEY_PREF_PUSH_TOKEN, refreshedToken).apply()
+        Timber.d("FCM Token %s", refreshedToken)
         super.onNewToken(refreshedToken)
     }
 
@@ -58,9 +60,9 @@ class FirebaseCloudMessagingService : FirebaseMessagingService() {
             Timber.d("Cloud Message data payload foreground: %s", remoteMessage.data)
 
             if (payloadFunctionParameter == INTENT_EXTRA_FUNCTION_NEWS_SHIFT) {
-                sendBroadcast(Intent(BROADCAST_INTENT_ACTION_CONST).putExtra(FUNCTION_CONST, INTENT_EXTRA_FUNCTION_NEWS_SHIFT))
+                sendBroadcast(Intent(CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST).putExtra(FUNCTION_CONST, INTENT_EXTRA_FUNCTION_NEWS_SHIFT))
             } else if (payloadFunctionParameter == INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY) {
-                sendBroadcast(Intent(BROADCAST_INTENT_ACTION_CONST).putExtra(FUNCTION_CONST, INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY))
+                sendBroadcast(Intent(CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST).putExtra(FUNCTION_CONST, INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY))
             }
         } else {
 
@@ -72,13 +74,13 @@ class FirebaseCloudMessagingService : FirebaseMessagingService() {
                 notificationNotAvailabilityUpdateBackgroundCounter++
             }
 
-            ShortcutBadger.applyCount(applicationContext,notificationNotAvailabilityUpdateBackgroundCounter+notificationNewsShiftBackgroundCounter)
+            ShortcutBadger.applyCount(applicationContext, notificationNotAvailabilityUpdateBackgroundCounter + notificationNewsShiftBackgroundCounter)
 
             saveBackGroundFunctionCounterOnShared()
 
-            var logishiftNotificationManager = LogishiftNotificationManager()
+            val logishiftNotificationManager = LogishiftNotificationManager()
 
-            logishiftNotificationManager.showCustomNotification(applicationContext,payloadTitleParameter,payloadBodyParameter,mappedPayLoadRemoteMessage,0)
+            logishiftNotificationManager.showCustomNotification(applicationContext, payloadTitleParameter, payloadBodyParameter, mappedPayLoadRemoteMessage, 0)
         }
 
 

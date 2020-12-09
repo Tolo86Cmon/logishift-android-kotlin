@@ -32,10 +32,15 @@ class Constants {
         const val HTTP_SEPARATOR_CONST = "://"
         const val SSO_MAIN_AUTH_URL_CONST = "/oauth_applications/app_sign_on"
         const val SSO_SEND_USER_LOG_INFO_URL_CONST = "/app_backend/service_infos?auth_token="
-        const val SSO_SEND_PUSH_TOKEN_URL_CONST = "  /app_backend/notifications"
+        const val SSO_SEND_PUSH_TOKEN_URL_CONST = "/app_backend/notifications"
+        const val RESET_VARIABLES = "reset_variables"
+        const val UPDATE_VARIABLES = "update_variables"
+        const val SAVE_VARIABLES = "save_variables"
 
-        const val BROADCAST_INTENT_ACTION_CONST = "WebViewActivity_BroadcastIntent"
-        const val JOB_DISPATCHER_SERVICE_TAG_CONST = "logishift-network-service"
+        const val CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST = "WebViewActivity_BroadcastIntent"
+
+
+
         const val NOTIFICATION_OPEN_APPLICATION_PENDING_INTENT_CONST = 3417
         const val NOTIFICATION_CHANNEL_ID_CONST = "my_channel_01"
         const val NOTIFICATION_CHANNEL_NAME = "my_notification_channel_name"
@@ -53,6 +58,14 @@ class Constants {
         fun JS_NOT_AVAILABILITY_UPDATE_COMMAND(notificationBackGroundMessage: String?):String{
             return "notAvailabilityUpdateAuthorizationStateNotification('$notificationBackGroundMessage');"
         }
+        fun JS_IS_GPS_ENABLE_COMMAND (isGpsEnable: String):String{
+            return "getGpsEnabledFromApp($isGpsEnable)"
+        }
+        fun JS_ASK_FOR_COORDINATES (latitude:Double?,longitude:Double?,accuracy:Float?):String{
+            return   "getPositionFromApp(" + latitude.toString() + "," + longitude.toString() + "," + accuracy.toString() + ")"
+        }
+
+
 
         val STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY = arrayOf("verform", "shunting", "trainshunt", "tel")
         val PERMISSIONS_ARRAY_ENUM = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.ACCESS_FINE_LOCATION)

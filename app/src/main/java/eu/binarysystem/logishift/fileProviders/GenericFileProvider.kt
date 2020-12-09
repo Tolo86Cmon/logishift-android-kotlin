@@ -1,4 +1,6 @@
 package eu.binarysystem.logishift.fileProviders
 
-class GenericFileProvider {
+import androidx.core.content.FileProvider
+
+class GenericFileProvider: FileProvider() {
 }
