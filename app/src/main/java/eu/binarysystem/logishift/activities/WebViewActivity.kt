@@ -24,6 +24,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBar.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.work.*
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import dk.nodes.filepicker.FilePickerActivity
@@ -60,12 +61,14 @@ import eu.binarysystem.logishift.utilities.Constants.Companion.SSO_MAIN_AUTH_URL
 import eu.binarysystem.logishift.utilities.Constants.Companion.STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY
 import eu.binarysystem.logishift.utilities.Constants.Companion.UPDATE_VARIABLES
 import eu.binarysystem.logishift.utilities.GpsManager
+import eu.binarysystem.logishift.utilities.NetworkWorker
 import kotlinx.android.synthetic.main.webview_activity.*
 import me.leolin.shortcutbadger.ShortcutBadger
 import okhttp3.*
 import timber.log.Timber
 import java.io.IOException
 import java.net.HttpURLConnection.HTTP_OK
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -113,8 +116,6 @@ class WebViewActivity : AppCompatActivity() {
         setContentView(R.layout.webview_activity)
 
         checkAppPermissions()
-
-
 
         setFirebaseMessagingPayloadParameterExtra()
 
@@ -234,6 +235,21 @@ class WebViewActivity : AppCompatActivity() {
         addListenerSetup()
         registerReceiver(multiFunctionBroadcastReceiver, IntentFilter(CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST))
         showCorrectAppLayoutByDomainUrl()
+        schduleNetworkWorker()
+    }
+
+    private fun schduleNetworkWorker() {
+
+        //Schedulo il worker per l'invio delle timbrature offline al backend
+        val constraints = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()
+
+        val periodicSyncDataWork = PeriodicWorkRequest.Builder(NetworkWorker::class.java, 15, TimeUnit.MINUTES).setConstraints(constraints) // setting a backoff on case the work needs to retry
+            .setBackoffCriteria(BackoffPolicy.LINEAR, PeriodicWorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS).build()
+
+        val uploadWorkRequest: WorkRequest = OneTimeWorkRequestBuilder<NetworkWorker>().build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork("SYNC_DATA_WORK_NAME", ExistingPeriodicWorkPolicy.REPLACE,  //Existing Periodic Work policy
+            periodicSyncDataWork)
     }
 
 
@@ -442,6 +458,7 @@ class WebViewActivity : AppCompatActivity() {
     private fun webViewSetup() {
         main_web_view.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(webView: WebView?, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
+                Timber.d("MainWebView onPageStarted - isHttpErrorOccurred -> %s", isHttpErrorOccurred)
                 val chooserFileIntent = Intent(applicationContext, FilePickerActivity::class.java)
                 chooserFileIntent.putExtra(FilePickerConstants.MULTIPLE_TYPES, arrayOf(FilePickerConstants.CAMERA, "application/*", FilePickerConstants.MIME_IMAGE))
                 chooserFileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -500,6 +517,7 @@ class WebViewActivity : AppCompatActivity() {
                 }
             }
 
+
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 isHttpErrorOccurred = true
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -551,7 +569,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-     fun updateSharedVariablesManager(function: String, variablesMap: HashMap<String, String?> = hashMapOf()) {
+    fun updateSharedVariablesManager(function: String, variablesMap: HashMap<String, String?> = hashMapOf()) {
         Timber.d("updateSharedVariables isCallingReset  %s", function)
         when (function) {
             RESET_VARIABLES -> {

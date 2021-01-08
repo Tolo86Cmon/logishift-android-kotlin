@@ -26,7 +26,7 @@ class Constants {
         const val READ_UPLOADED_URI_CODE_CONST = 42
         const val LOGI_SHIFT_MOBILE_USER_AGENT_CONST = "bs_logishift__mobile_bs"
         const val FUNCTION_CONST = "function"
-        const val TITLE_CONST:String = "title"
+        const val TITLE_CONST: String = "title"
         const val BODY_CONST = "body"
         const val PERMISSIONS_REQUEST_CODE_CONST = 11232
         const val HTTP_SEPARATOR_CONST = "://"
@@ -36,9 +36,8 @@ class Constants {
         const val RESET_VARIABLES = "reset_variables"
         const val UPDATE_VARIABLES = "update_variables"
         const val SAVE_VARIABLES = "save_variables"
-
+        const val JOB_TAG = "logishift-network-service"
         const val CALL_JS_COMMAND_FROM_BROADCAST_INTENT_ACTION_CONST = "WebViewActivity_BroadcastIntent"
-
 
 
         const val NOTIFICATION_OPEN_APPLICATION_PENDING_INTENT_CONST = 3417
@@ -49,22 +48,24 @@ class Constants {
 
         //Intent const
         const val INTENT_EXTRA_FUNCTION_NEWS_SHIFT = "newsShift"
-        const val INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY= "notAvailabilityUpdate"
+        const val INTENT_EXTRA_FUNCTION_NOT_AVAILABILITY = "notAvailabilityUpdate"
 
         //Js Command const
         const val JS_DO_LOG_OUT_COMMAND = "doLogoutFromApp();"
         const val JS_OPEN_INFO_COMMAND = "openInfoTab();"
         const val JS_NEW_SHIFT_NOTIFICATION_COMMAND = "newShiftNotification();"
-        fun JS_NOT_AVAILABILITY_UPDATE_COMMAND(notificationBackGroundMessage: String?):String{
+
+        fun JS_NOT_AVAILABILITY_UPDATE_COMMAND(notificationBackGroundMessage: String?): String {
             return "notAvailabilityUpdateAuthorizationStateNotification('$notificationBackGroundMessage');"
         }
-        fun JS_IS_GPS_ENABLE_COMMAND (isGpsEnable: String):String{
+
+        fun JS_IS_GPS_ENABLE_COMMAND(isGpsEnable: String): String {
             return "getGpsEnabledFromApp($isGpsEnable)"
         }
-        fun JS_ASK_FOR_COORDINATES (latitude:Double?,longitude:Double?,accuracy:Float?):String{
-            return   "getPositionFromApp(" + latitude.toString() + "," + longitude.toString() + "," + accuracy.toString() + ")"
-        }
 
+        fun JS_ASK_FOR_COORDINATES(latitude: Double?, longitude: Double?, accuracy: Float?): String {
+            return "getPositionFromApp(" + latitude.toString() + "," + longitude.toString() + "," + accuracy.toString() + ")"
+        }
 
 
         val STRINGS_TO_URL_SHOULD_BE_OVERRIDE_ARRAY = arrayOf("verform", "shunting", "trainshunt", "tel")
