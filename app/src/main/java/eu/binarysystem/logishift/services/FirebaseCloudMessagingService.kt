@@ -21,9 +21,9 @@ import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class FirebaseCloudMessagingService : FirebaseMessagingService() {
+class FirebaseCloudMessagingService() : FirebaseMessagingService() {
 
-    @Inject lateinit var pref: SharedPreferencesRetriever
+    val pref: SharedPreferencesRetriever = SharedPreferencesRetriever(applicationContext)
 
     private lateinit var payloadTitleParameter: String
     private lateinit var payloadBodyParameter: String
