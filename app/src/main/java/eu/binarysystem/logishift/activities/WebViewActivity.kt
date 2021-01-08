@@ -14,6 +14,7 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.util.Base64
 import android.view.Menu
 import android.view.MenuItem
@@ -24,11 +25,14 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.ActionBar.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.FileProvider
 import androidx.work.*
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import dk.nodes.filepicker.FilePickerActivity
 import dk.nodes.filepicker.FilePickerConstants
+import dk.nodes.filepicker.uriHelper.FilePickerUriHelper
+import eu.binarysystem.logishift.BuildConfig
 import eu.binarysystem.logishift.R
 import eu.binarysystem.logishift.hilt.LocationManagerRetriever
 import eu.binarysystem.logishift.hilt.SharedPreferencesRetriever
@@ -66,6 +70,9 @@ import kotlinx.android.synthetic.main.webview_activity.*
 import me.leolin.shortcutbadger.ShortcutBadger
 import okhttp3.*
 import timber.log.Timber
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection.HTTP_OK
 import java.util.concurrent.TimeUnit
@@ -104,6 +111,8 @@ class WebViewActivity : AppCompatActivity() {
     var latitude: Double? = 0.0
     var longitude: Double? = 0.0
     var accuracy: Float? = 0.0F
+
+     var uriUploaded: ValueCallback<Array<Uri>>? = null
 
 
     //AppCompatActivity Cycle method
@@ -221,12 +230,74 @@ class WebViewActivity : AppCompatActivity() {
     }
 
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, dataIntent: Intent?) {
+        if (requestCode == READ_UPLOADED_URI_CODE_CONST) {
+            var receivedUriFromFilePicker = if (dataIntent == null || resultCode != RESULT_OK) null else FilePickerUriHelper.getUri(dataIntent)
+            Timber.d("Received URI from filePicker: %s", receivedUriFromFilePicker)
+            if (receivedUriFromFilePicker != null) {
+                if (receivedUriFromFilePicker.scheme == null || receivedUriFromFilePicker.scheme != "file") {
+                    // La WebView popola correttamente l'input file solo con URI file://
+                    if (checkPresumedFileMimeType(receivedUriFromFilePicker.toString())!!.contains(".bin")) {
+                        Timber.d("Received URI Contains extensions .bin")
+                        val fileToBeMoved = File(receivedUriFromFilePicker.path!!)
+                        val movedFileDirectory = File(Environment.getExternalStorageDirectory(), "")
+                        try {
+                            receivedUriFromFilePicker = moveFile(fileToBeMoved, movedFileDirectory)?.let { FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".binarysystem.logishift.file.provider", it) }
+                        } catch (e: IOException) {
+                            Timber.e("Moved file in new directory failed %s", e.localizedMessage)
+                            e.printStackTrace()
+                        }
+                    } else {
+                        Timber.d("Received URI standard")
+                        receivedUriFromFilePicker = Uri.parse("file://$receivedUriFromFilePicker")
+                    }
+                    Timber.d("final Uploaded URI: %s", receivedUriFromFilePicker)
+                }
+
+
+
+
+                // Android 5+
+                if (uriUploaded != null) {
+                    Timber.d("uriUploaded != null: %s", uriUploaded)
+                    if (receivedUriFromFilePicker != null){
+                        Timber.d(" uriUploaded receivedUriFromFilePicker != null: %s", receivedUriFromFilePicker)
+                        uriUploaded!!.onReceiveValue(arrayOf(receivedUriFromFilePicker))
+                    }
+                    else{
+                        Timber.d("uriUploaded  null")
+                        arrayOfNulls<Uri>(0)
+                    }
+
+                    uriUploaded = null
+                }
+
+            }
+        }
+        super.onActivityResult(requestCode, resultCode, dataIntent)
     }
 
 
     //BackupMethod
+
+   private fun checkPresumedFileMimeType(receivedUri: String): String? {
+        return receivedUri.substring(receivedUri.length - 4)
+    }
+
+
+    private fun moveFile(originFile: File, directory: File): File? {
+        val movedFile = File(directory, "attachedFile.jpg")
+        FileOutputStream(movedFile).channel.use { outputChannel ->
+            FileInputStream(originFile).channel.use { inputChannel ->
+                inputChannel.transferTo(0, inputChannel.size(), outputChannel)
+                inputChannel.close()
+                Timber.d("File")
+                originFile.delete()
+            }
+        }
+        return movedFile
+    }
+
 
     private fun appSetup() {
         setDisplayActionBarSetup()
@@ -458,7 +529,8 @@ class WebViewActivity : AppCompatActivity() {
     private fun webViewSetup() {
         main_web_view.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(webView: WebView?, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
-                Timber.d("MainWebView onPageStarted - isHttpErrorOccurred -> %s", isHttpErrorOccurred)
+                uriUploaded = filePathCallback
+                Timber.d("MainWebView onShowFileChooser ")
                 val chooserFileIntent = Intent(applicationContext, FilePickerActivity::class.java)
                 chooserFileIntent.putExtra(FilePickerConstants.MULTIPLE_TYPES, arrayOf(FilePickerConstants.CAMERA, "application/*", FilePickerConstants.MIME_IMAGE))
                 chooserFileIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
