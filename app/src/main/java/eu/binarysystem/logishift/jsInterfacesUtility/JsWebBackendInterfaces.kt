@@ -29,9 +29,6 @@ class JsWebBackendInterfaceslocationManager(val context: Context, private val we
 
         webViewActivity.updateSharedVariablesManager(SAVE_VARIABLES, hashMapOf(SHARED_KEY_AUTH_TOKEN to authToken, SHARED_KEY_PREF_USEREMAIL to userEmail, SHARED_KEY_LOGI_SHIFT_URL to logishiftUrlEndpoint))
 
-
-
-
         if (userEmail != null) {
             pref.getDefaultSharedEditor().putString(SHARED_KEY_LOGI_SHIFT_BASE64_ICON, null)
             FirebaseCrashlytics.getInstance().setUserId(userEmail)
