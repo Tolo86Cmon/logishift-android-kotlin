@@ -29,11 +29,12 @@ import androidx.core.content.FileProvider
 import androidx.work.*
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
+import dk.nodes.filepicker.BuildConfig
 import dk.nodes.filepicker.FilePickerActivity
 import dk.nodes.filepicker.FilePickerConstants
 import dk.nodes.filepicker.uriHelper.FilePickerUriHelper
-import eu.binarysystem.logishift.BuildConfig
 import eu.binarysystem.logishift.R
+import eu.binarysystem.logishift.databinding.WebviewActivityBinding
 import eu.binarysystem.logishift.hilt.LocationManagerRetriever
 import eu.binarysystem.logishift.hilt.SharedPreferencesRetriever
 import eu.binarysystem.logishift.jsInterfacesUtility.JsWebBackendInterfaceslocationManager
@@ -66,7 +67,6 @@ import eu.binarysystem.logishift.utilities.Constants.Companion.STRINGS_TO_URL_SH
 import eu.binarysystem.logishift.utilities.Constants.Companion.UPDATE_VARIABLES
 import eu.binarysystem.logishift.utilities.GpsManager
 import eu.binarysystem.logishift.utilities.NetworkWorker
-import kotlinx.android.synthetic.main.webview_activity.*
 import me.leolin.shortcutbadger.ShortcutBadger
 import okhttp3.*
 import timber.log.Timber
@@ -82,7 +82,7 @@ import javax.inject.Inject
 class WebViewActivity : AppCompatActivity() {
     @Inject lateinit var locationManager: LocationManagerRetriever
     @Inject lateinit var pref: SharedPreferencesRetriever
-
+    private lateinit var viewBinding: WebviewActivityBinding
 
     lateinit var webSettings: WebSettings
     lateinit var gpsManager: GpsManager
@@ -122,7 +122,10 @@ class WebViewActivity : AppCompatActivity() {
 
         Timber.plant(Timber.DebugTree())
 
-        setContentView(R.layout.webview_activity)
+        viewBinding = WebviewActivityBinding.inflate(layoutInflater)
+        val view = viewBinding.root
+
+        setContentView(view)
 
         checkAppPermissions()
 
@@ -216,7 +219,7 @@ class WebViewActivity : AppCompatActivity() {
             R.id.action_change_server -> {
                 isCallingEditServer = true
                 if (lastHttpSchemeUsed != null) {
-                    server_scheme_edit_text.setText(lastHttpSchemeUsed)
+                    viewBinding.serverSchemeEditText.setText(lastHttpSchemeUsed)
                 }
 
                 if (!logishiftUrlEndPoint.isNullOrEmpty()) {
@@ -327,8 +330,8 @@ class WebViewActivity : AppCompatActivity() {
     fun resetDomainAndLayout() {
         Timber.d("resetDomainAndLayout")
         updateSharedVariablesManager(RESET_VARIABLES)
-        sso_server_edit_text.setText("")
-        error_linear_layout.visibility = View.GONE
+        viewBinding.ssoServerEditText.setText("")
+        viewBinding.errorLinearLayout.visibility = View.GONE
         showCorrectAppLayoutByDomainUrl()
         invalidateOptionsMenu()
         Toast.makeText(applicationContext, R.string.server_successfully_logged_out, Toast.LENGTH_SHORT).show()
@@ -336,19 +339,19 @@ class WebViewActivity : AppCompatActivity() {
 
 
     private fun addListenerSetup() {
-        check_sso_url_button.setOnClickListener {
-            environmentSSOUrl = sso_server_edit_text.text.toString()
-            ssoServerUrlManager(server_scheme_edit_text.text.toString())
+       viewBinding.checkSsoUrlButton.setOnClickListener {
+            environmentSSOUrl = viewBinding.ssoServerEditText.text.toString()
+            ssoServerUrlManager(viewBinding.serverSchemeEditText.text.toString())
         }
 
-        change_url_schema_button.setOnClickListener {
-            if (!server_scheme_edit_text.isEnabled) {
-                server_scheme_edit_text.isEnabled = true
-                change_url_schema_button.text = resources.getString(R.string.action_save_url_schema)
+        viewBinding.changeUrlSchemaButton.setOnClickListener {
+            if (!viewBinding.serverSchemeEditText.isEnabled) {
+                  viewBinding.serverSchemeEditText.isEnabled = true
+              viewBinding.changeUrlSchemaButton.text = resources.getString(R.string.action_save_url_schema)
             } else {
-                if (server_scheme_edit_text.text.isNotEmpty() && (server_scheme_edit_text.text.toString() == "https" || server_scheme_edit_text.text.toString() == "https")) {
-                    server_scheme_edit_text.isEnabled = false
-                    change_url_schema_button.text = resources.getString(R.string.action_change_url_schema)
+                if (viewBinding.serverSchemeEditText.text.isNotEmpty() && (viewBinding.serverSchemeEditText.text.toString() == "https" || viewBinding.serverSchemeEditText.text.toString() == "https")) {
+                    viewBinding.serverSchemeEditText.isEnabled = false
+                    viewBinding.changeUrlSchemaButton.text = resources.getString(R.string.action_change_url_schema)
                 } else {
                     Toast.makeText(applicationContext, R.string.server_schema_error, Toast.LENGTH_SHORT).show()
                 }
@@ -388,16 +391,16 @@ class WebViewActivity : AppCompatActivity() {
 
     fun callJavascript(javascriptStringCommand: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            main_web_view.evaluateJavascript(javascriptStringCommand, null)
+          viewBinding.mainWebView.evaluateJavascript(javascriptStringCommand, null)
         } else {
-            main_web_view.loadUrl("javascript:$javascriptStringCommand")
+            viewBinding.mainWebView.loadUrl("javascript:$javascriptStringCommand")
         }
     }
 
 
     private fun ssoServerUrlManager(serverScheme: String) {
-        login_progress_bar.visibility = View.VISIBLE
-        if (!server_scheme_edit_text.isEnabled) run {
+        viewBinding.loginProgressBar.visibility = View.VISIBLE
+        if (!viewBinding.serverSchemeEditText.isEnabled) run {
             try {
                 val okHttp3Client = OkHttpClient()
 
@@ -407,7 +410,7 @@ class WebViewActivity : AppCompatActivity() {
 
                     override fun onFailure(call: Call, e: IOException) {
                         this@WebViewActivity.runOnUiThread {
-                            login_progress_bar.visibility = View.INVISIBLE
+                           viewBinding.loginProgressBar.visibility = View.INVISIBLE
                             Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -416,13 +419,13 @@ class WebViewActivity : AppCompatActivity() {
                         if (response.code() == HTTP_OK) {
                             updateSharedVariablesManager(SAVE_VARIABLES, hashMapOf(SHARED_HTTP_SCHEMA to serverScheme, SHARED_KEY_URL_SERVER_ENVIRONMENT to environmentSSOUrl))
                             this@WebViewActivity.runOnUiThread {
-                                login_progress_bar.visibility = View.INVISIBLE
+                               viewBinding.loginProgressBar.visibility = View.INVISIBLE
                                 showCorrectAppLayoutByDomainUrl()
                                 Toast.makeText(applicationContext, R.string.server_sso_login_successful, Toast.LENGTH_SHORT).show()
                             }
                         } else {
                             this@WebViewActivity.runOnUiThread {
-                                login_progress_bar.visibility = View.INVISIBLE
+                               viewBinding.loginProgressBar.visibility = View.INVISIBLE
                                 Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show();
 
                             }
@@ -431,7 +434,7 @@ class WebViewActivity : AppCompatActivity() {
 
                 })
             } catch (exception: Exception) {
-                login_progress_bar.visibility = View.INVISIBLE
+                viewBinding.loginProgressBar.visibility = View.INVISIBLE
                 Toast.makeText(applicationContext, R.string.server_sso_login_error, Toast.LENGTH_SHORT).show()
                 FirebaseCrashlytics.getInstance().log("Error calling SSO login (" + String.format("%s%s%s%s", serverScheme, "://", environmentSSOUrl, SHARED_KEY_URL_SERVER_ENVIRONMENT) + ") ErrorMessage ->" + exception.getLocalizedMessage())
                 FirebaseCrashlytics.getInstance().recordException(exception)
@@ -439,7 +442,7 @@ class WebViewActivity : AppCompatActivity() {
 
 
         } else {
-            login_progress_bar.visibility = View.INVISIBLE
+            viewBinding.loginProgressBar.visibility = View.INVISIBLE
             Toast.makeText(applicationContext, R.string.save_schema_message, Toast.LENGTH_SHORT).show()
         }
     }
@@ -448,15 +451,15 @@ class WebViewActivity : AppCompatActivity() {
         Timber.d("showCorrectAppLayoutByDomainUrl  environmentSSOUrl ->%s logishiftUrlEndPoint ->%s", environmentSSOUrl, logishiftUrlEndPoint)
         updateSharedVariablesManager(UPDATE_VARIABLES, hashMapOf(SHARED_KEY_URL_SERVER_ENVIRONMENT to environmentSSOUrl, SHARED_KEY_LOGI_SHIFT_URL to logishiftUrlEndPoint))
         if (environmentSSOUrl.isNullOrEmpty()) {
-            main_web_view.visibility = View.GONE
-            server_url_linear_layout.visibility = View.VISIBLE
+           viewBinding.mainWebView.visibility = View.GONE
+           viewBinding.serverUrlLinearLayout.visibility = View.VISIBLE
         } else {
-            main_web_view.visibility = View.VISIBLE
-            server_url_linear_layout.visibility = View.GONE
+            viewBinding.mainWebView.visibility = View.VISIBLE
+            viewBinding.serverUrlLinearLayout.visibility = View.GONE
             if (!logishiftUrlEndPoint.isNullOrEmpty()) {
-                main_web_view.loadUrl(logishiftUrlEndPoint!!)
+                viewBinding.mainWebView.loadUrl(logishiftUrlEndPoint!!)
             } else {
-                main_web_view.loadUrl(String.format("%s%s%s%s", server_scheme_edit_text.text.toString(), HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_MAIN_AUTH_URL_CONST))
+                viewBinding.mainWebView.loadUrl(String.format("%s%s%s%s", viewBinding.serverSchemeEditText.text.toString(), HTTP_SEPARATOR_CONST, environmentSSOUrl, SSO_MAIN_AUTH_URL_CONST))
             }
         }
 
@@ -510,7 +513,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun webSettingsSetup() {
-        webSettings = main_web_view.settings
+        webSettings =  viewBinding.mainWebView.settings
         webSettings.javaScriptEnabled = true
         webSettings.setAppCacheEnabled(true) // TODO: Considerarne la rimozione in vista della gestione dei Service Workers 06/11/2020
         webSettings.setAppCachePath(cacheDir.absolutePath)  // TODO: Considerarne la rimozione in vista della gestione dei Service Workers 06/11/2020
@@ -527,7 +530,7 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun webViewSetup() {
-        main_web_view.webChromeClient = object : WebChromeClient() {
+        viewBinding.mainWebView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(webView: WebView?, filePathCallback: ValueCallback<Array<Uri>>?, fileChooserParams: FileChooserParams?): Boolean {
                 uriUploaded = filePathCallback
                 Timber.d("MainWebView onShowFileChooser ")
@@ -539,9 +542,9 @@ class WebViewActivity : AppCompatActivity() {
             }
         }
 
-        main_web_view.addJavascriptInterface(JsWebBackendInterfaceslocationManager(applicationContext, this, gpsManager, locationManager, pref), "Android")
+        viewBinding.mainWebView.addJavascriptInterface(JsWebBackendInterfaceslocationManager(applicationContext, this, gpsManager, locationManager, pref), "Android")
 
-        main_web_view.setDownloadListener { url, _, _, _, _ ->
+        viewBinding.mainWebView.setDownloadListener { url, _, _, _, _ ->
             try {
 
                 val intent = Intent(ACTION_VIEW)
@@ -555,7 +558,7 @@ class WebViewActivity : AppCompatActivity() {
 
         }
 
-        main_web_view.webViewClient = object : WebViewClient() {
+        viewBinding.mainWebView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 isHttpErrorOccurred = false;
                 Timber.d("MainWebView onPageStarted - isHttpErrorOccurred -> %s", isHttpErrorOccurred)
@@ -565,7 +568,7 @@ class WebViewActivity : AppCompatActivity() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 //Se l'errore http è avvenuto prima del termine del caricamento della pagina lo ignoro e resetto il flag a false
                 if (isHttpErrorOccurred) {
-                    error_linear_layout.visibility = View.GONE
+                   viewBinding.errorLinearLayout.visibility = View.GONE
                 }
                 isHttpErrorOccurred = false
 
@@ -706,9 +709,9 @@ class WebViewActivity : AppCompatActivity() {
     }
 
     private fun showHttpErrorLayout() {
-        check_sso_url_button.visibility = View.GONE
-        server_url_linear_layout.visibility = View.GONE
-        error_linear_layout.visibility = View.VISIBLE
+       viewBinding.checkSsoUrlButton.visibility = View.GONE
+       viewBinding.serverUrlLinearLayout.visibility = View.GONE
+       viewBinding.errorLinearLayout.visibility = View.VISIBLE
     }
 
 
@@ -727,7 +730,7 @@ class WebViewActivity : AppCompatActivity() {
     private fun updateHttpLayoutSchema() {
         updateSharedVariablesManager(UPDATE_VARIABLES, hashMapOf(SHARED_HTTP_SCHEMA to lastHttpSchemeUsed))
         if (lastHttpSchemeUsed != null) {
-            server_scheme_edit_text.setText(lastHttpSchemeUsed)
+            viewBinding.serverSchemeEditText.setText(lastHttpSchemeUsed)
         }
     }
 
